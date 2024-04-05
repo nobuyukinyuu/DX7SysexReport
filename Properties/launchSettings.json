@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "DX7SysexReport": {
+      "commandName": "Project",
+      "commandLineArgs": "ROM1A.SYX"
+    }
+  }
+}
