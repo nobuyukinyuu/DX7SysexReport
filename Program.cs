@@ -6,6 +6,7 @@ using System.Runtime.InteropServices;
 using System.Reflection.Metadata;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Reflection.Metadata.Ecma335;
 
 namespace DX7SysexReport
 {
@@ -24,28 +25,49 @@ namespace DX7SysexReport
         public byte EG_L2;
         public byte EG_L3;
         public byte EG_L4;
-        public byte levelScalingBreakPoint;
+        [JsonIgnore] public byte levelScalingBreakPoint;
+        public string LevelScalingBreakPoint {get=> Program.NoteName(levelScalingBreakPoint);}
         public byte scaleLeftDepth;
         public byte scaleRightDepth;
 
-                                                    //public byte             bit #
-                                                    // #     6   5   4   3   2   1   0   param A       range  param B       range
-                                                    //----  --- --- --- --- --- --- ---  ------------  -----  ------------  -----
-        public byte scaleCurve;   // 11    0   0   0 |  RC   |   LC  | SCL LEFT CURVE 0-3   SCL RGHT CURVE 0-3
-        public byte DT_RS;        // 12  |      DET      |     RS    | OSC DETUNE     0-14  OSC RATE SCALE 0-7
-        public byte VEL_AMS;      // 13    0   0 |    KVS    |  AMS  | KEY VEL SENS   0-7   AMP MOD SENS   0-3
-        public byte outputLevel;       
+                                                //public byte             bit #
+                                                // #     6   5   4   3   2   1   0   param A       range  param B       range
+                                                //----  --- --- --- --- --- --- ---  ------------  -----  ------------  -----
+        [JsonIgnore] public byte scaleCurve;    // 11    0   0   0 |  RC   |   LC  | SCL LEFT CURVE 0-3   SCL RGHT CURVE 0-3
+        [JsonIgnore] public byte DT_RS;         // 12  |      DET      |     RS    | OSC DETUNE     0-14  OSC RATE SCALE 0-7
+        [JsonIgnore] public byte VEL_AMS;       // 13    0   0 |    KVS    |  AMS  | KEY VEL SENS   0-7   AMP MOD SENS   0-3
+        public byte outputLevel;
         
-        public byte FC_M;         // 15    0 |         FC        | M | FREQ COARSE    0-31  OSC MODE       0-1
-        public byte frequencyFine;
+        [JsonIgnore] public byte FC_M;          // 15    0 |         FC        | M | FREQ COARSE    0-31  OSC MODE       0-1
+        [JsonIgnore] public byte frequencyFine;
+
+
+        readonly public string CurveScaleLeft { get=> ((CurveScaleType)(scaleCurve & 3)).ToString(); }
+        readonly public string CurveScaleRight { get=> ((CurveScaleType)((scaleCurve >> 2) & 3)).ToString(); }
+
+        readonly public int Detune { get=> ((DT_RS>>3) & 0xF) -7; }
+        readonly public int RateScale { get=> DT_RS & 0x7; }
+
+        readonly public int VelocitySensitivity { get=> (VEL_AMS >> 2) & 0x7; }
+        readonly public int AMS  { get=> VEL_AMS & 0x3; }
+
+
+        readonly public string FrequencyMode {get=> ((OscModes)(FC_M & 1)).ToString();}
+        readonly public int CoarseFrequency {get=> (FC_M >> 1) & 31;}
+        readonly public int FineFrequency {get=> frequencyFine;}
+
     }
 
+    enum OscModes {Fixed, Ratio}
+    enum CurveScaleType {LinMinus, ExpMinus, ExpPlus, LinPlus}
     
     [StructLayout(LayoutKind.Sequential, Size=128, Pack=1)]  
     struct PackedVoice
     {
         public PackedVoice() {}
         public PackedOperator[] ops = new PackedOperator[6];
+
+        public string Name {get=> name;}
 
         public byte pitchEGR1=0;
         public byte pitchEGR2=0;
@@ -56,24 +78,28 @@ namespace DX7SysexReport
         public byte pitchEGL3=0;
         public byte pitchEGL4=0;
      
-                                                        //public byte             bit #
-                                                        // #     6   5   4   3   2   1   0   param A       range  param B       range
-                                                        //----  --- --- --- --- --- --- ---  ------------  -----  ------------  -----
-        public byte algorithm=0;     //110    0   0 |        ALG        | ALGORITHM     0-31
-        public byte KEYSYNC_FB=0;    //111    0   0   0 |OKS|    FB     | OSC KEY SYNC  0-1    FEEDBACK      0-7
+
+        public int Algorithm {get=>algorithm+1;}
+                                                    //public byte             bit #
+                                                    // #     6   5   4   3   2   1   0   param A       range  param B       range
+                                                    //----  --- --- --- --- --- --- ---  ------------  -----  ------------  -----
+        [JsonIgnore] public byte algorithm=0;       //110    0   0 |        ALG        | ALGORITHM     0-31
+        [JsonIgnore] public byte KEYSYNC_FB=0;      //111    0   0   0 |OKS|    FB     | OSC KEY SYNC  0-1    FEEDBACK      0-7
+
+        readonly public bool KeySync {get => ((KEYSYNC_FB>>3) & 1) == 1; }
+        readonly public byte Feedback {get => (byte)(KEYSYNC_FB & 0x7); }
 
         public byte lfoSpeed=0;
         public byte lfoDelay=0;
         public byte lfoPMD=0;
         public byte lfoAMD=0;
-        public byte lfoPackedOpts=0; //116  |  LPMS |      LFW      |LKS| LF PT MOD SNS 0-7   WAVE 0-5,  SYNC 0-1
+        [JsonIgnore] public byte lfoPackedOpts=0;   //116  |  LPMS |      LFW      |LKS| LF PT MOD SNS 0-7   WAVE 0-5,  SYNC 0-1
 
         public byte transpose=0;
         
         // byte[] name;//=Encoding.ASCII.GetBytes("No Name   ");
 
-        public string name = "_Untitled_";
-        // string Name {get=> Encoding.ASCII.GetString(name);}
+        [JsonIgnore] public string name = "_Untitled_";
     }
 
     // [StructLayout(LayoutKind.Sequential)] 
@@ -81,17 +107,17 @@ namespace DX7SysexReport
     {
         public DX7Sysex() {}
 
-        public byte sysexBegin = 0xF0;
-        public byte vendorID = 0x43;
-        public byte subStatusAndChannel=0;  // 0
-        public byte format=9;
-        public byte sizeMSB=0x20;  // 7 bits
-        public byte sizeLSB=0x00;  // 7 bits
+        [JsonIgnore] public byte sysexBegin = 0xF0;
+        [JsonIgnore] public byte vendorID = 0x43;
+        [JsonIgnore] public byte subStatusAndChannel=0;  // 0
+        [JsonIgnore] public byte format=9;
+        [JsonIgnore] public byte sizeMSB=0x20;  // 7 bits
+        [JsonIgnore] public byte sizeLSB=0x00;  // 7 bits
 
         public PackedVoice[] voices = new PackedVoice[32];
 
-        public byte checksum=0;
-        public byte sysexEnd=0xF7;  // 0xF7
+        [JsonIgnore] public byte checksum=0;
+        [JsonIgnore] public byte sysexEnd=0xF7;  // 0xF7
 
         [JsonIgnore] public byte[] rawdata=new byte[4096];
     };
@@ -110,12 +136,21 @@ namespace DX7SysexReport
 
         // ***************************************************************************
 
+        const int NOTE_C3 = 0x27; //39
+        readonly static string[] noteNames = {"A-", "A#", "B-", "C-", "C#", "D-", "D#", "E-", "F-", "F#", "G-", "G#"};
+
+        public static String NoteName(int noteNum=NOTE_C3)
+        {
+            int octave = (noteNum-3) / 12;
+            return $"{noteNames[(noteNum) % 12]}{octave}";
+        }
+
         static void ProcessOptions(CommandLineApplication app)
         {
 
             version = app.Option("-V|--version", "Displays the current version number.", CommandOptionType.NoValue);
-            verbose = app.Option("-v|--verbose", "Displays a longer listing of dump info.", CommandOptionType.NoValue);
-            deDupe = app.Option("-d|--find-dupes", "Finds duplicate voices in the bank.", CommandOptionType.NoValue);
+            verbose = app.Option("-v|--verbose", "Displays a longer listing of dump info in JSON format.", CommandOptionType.NoValue);
+            deDupe = app.Option("-d|--find-dupes", "Finds duplicate voices in the bank. (NOT YET IMPLEMENTED)", CommandOptionType.NoValue);
             patch = app.Option<int?>("-p|--patch <PATCHNUM>", "Specify the voice patch to display info for.", CommandOptionType.SingleValue);
             patch.DefaultValue = -1;
 
@@ -139,7 +174,6 @@ namespace DX7SysexReport
                 if(version.HasValue())
                 {
                     Console.WriteLine($"{System.AppDomain.CurrentDomain.FriendlyName} {VERSION}");
-                    Environment.Exit(0);
                 }
 
                 string filename="";
@@ -163,7 +197,19 @@ namespace DX7SysexReport
                             DX7Sysex sysex = Parse(reader);
                             Validate(sysex);
                             var opts = new JsonSerializerOptions {IncludeFields=true, WriteIndented=true};
-                            Console.WriteLine(JsonSerializer.Serialize(sysex, opts));
+
+                            if(!verbose.HasValue() && patch.ParsedValue==patch.DefaultValue)
+                                for(int i=0; i < sysex.voices.Length; i++)
+                                    Console.WriteLine($"Voice #{i.ToString("00")}: {sysex.voices[i].name}  (Algorithm {sysex.voices[i].Algorithm})");
+                            else
+                                if (patch.ParsedValue!=patch.DefaultValue)  
+                                    foreach(int? val in patch.ParsedValues)
+                                    {
+                                        if (val==null) continue;
+                                        Console.WriteLine(JsonSerializer.Serialize(sysex.voices[(int)val], opts));
+                                    }
+                                else
+                                    Console.WriteLine(JsonSerializer.Serialize(sysex, opts));
                         }
                     }
 
@@ -240,24 +286,6 @@ namespace DX7SysexReport
 
         }
 
-        static byte[] getBytes(PackedVoice voice) {
-            int size = Marshal.SizeOf(voice);
-            byte[] arr = new byte[size];
-
-            IntPtr ptr = IntPtr.Zero;
-            try
-            {
-                ptr = Marshal.AllocHGlobal(size);
-                Marshal.StructureToPtr(voice, ptr, true);
-                Marshal.Copy(ptr, arr, 0, size);
-            }
-            finally
-            {
-                Marshal.FreeHGlobal(ptr);
-            }
-            return arr;
-        }
-
         private static DX7Sysex Parse(BinaryReader reader)
         {
             var o = new DX7Sysex();
@@ -273,10 +301,10 @@ namespace DX7SysexReport
             {
                 PackedVoice voice = new PackedVoice();
                 
-                //Do operators
+                //Do operators.  Sysex format packs it starting with Op6(!) and going in reverse back to Op1.
                 for(int i=0; i<voice.ops.Length; i++)
                 {
-                    var op= voice.ops[i];
+                    var op= voice.ops[voice.ops.Length-i-1];
                     op.EG_R1 = reader.ReadByte();
                     op.EG_R2 = reader.ReadByte();
                     op.EG_R3 = reader.ReadByte();
@@ -298,6 +326,8 @@ namespace DX7SysexReport
                     
                     op.FC_M = reader.ReadByte();
                     op.frequencyFine = reader.ReadByte();
+
+                    voice.ops[voice.ops.Length-i-1] = op;
                 }
 
                 voice.pitchEGR1 = reader.ReadByte();
