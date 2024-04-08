@@ -151,9 +151,8 @@ namespace DX7SysexReport
             version = app.Option("-V|--version", "Displays the current version number.", CommandOptionType.NoValue);
             verbose = app.Option("-v|--verbose", "Displays a longer listing of dump info in JSON format.", CommandOptionType.NoValue);
             deDupe = app.Option("-d|--find-dupes", "Finds duplicate voices in the bank. (NOT YET IMPLEMENTED)", CommandOptionType.NoValue);
-            patch = app.Option<int?>("-p|--patch <PATCHNUM>", "Specify the voice patch to display info for.", CommandOptionType.SingleValue);
+            patch = app.Option<int?>("-p|--patch <PATCHNUM>", "Specify the voice patch to display info for.", CommandOptionType.MultipleValue);
             patch.DefaultValue = -1;
-
         }
 
 
@@ -200,7 +199,7 @@ namespace DX7SysexReport
 
                             if(!verbose.HasValue() && patch.ParsedValue==patch.DefaultValue)
                                 for(int i=0; i < sysex.voices.Length; i++)
-                                    Console.WriteLine($"Voice #{i.ToString("00")}: {sysex.voices[i].name}  (Algorithm {sysex.voices[i].Algorithm})");
+                                    Console.WriteLine(ShortVoiceName(sysex,i));
                             else
                                 if (patch.ParsedValue!=patch.DefaultValue)  
                                     foreach(int? val in patch.ParsedValues)
@@ -222,6 +221,12 @@ namespace DX7SysexReport
             return app.Execute(args);
         }
         
+        const string GR = "\x1b[32m";
+        const string CY = "\x1b[33m";
+        const string RS = "\x1b[39m";
+        private static string ShortVoiceName(DX7Sysex sysex, int index) =>
+            $"{GR}Voice {CY}#{index.ToString("00")}{GR}:{RS} {sysex.voices[index].name}  \x1b[34m(Algorithm {sysex.voices[index].Algorithm}){RS}";
+
         private static int Validate(DX7Sysex sysex)
         {
             // *** Verify Header and Footer ***
