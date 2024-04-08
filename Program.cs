@@ -58,7 +58,7 @@ namespace DX7SysexReport
 
     }
 
-    enum OscModes {Fixed, Ratio}
+    enum OscModes {Ratio, Fixed}
     enum CurveScaleType {LinMinus, ExpMinus, ExpPlus, LinPlus}
     
     [StructLayout(LayoutKind.Sequential, Size=128, Pack=1)]  
@@ -124,7 +124,7 @@ namespace DX7SysexReport
 
     class Program
     {
-        const string VERSION = "1.0";
+        const string VERSION = "1.01";
         const int FILE_SIZE = 4104;
 
         static CommandOption version;
