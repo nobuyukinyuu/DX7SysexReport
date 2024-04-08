@@ -150,8 +150,8 @@ namespace DX7SysexReport
 
             version = app.Option("-V|--version", "Displays the current version number.", CommandOptionType.NoValue);
             verbose = app.Option("-v|--verbose", "Displays a longer listing of dump info in JSON format.", CommandOptionType.NoValue);
-            deDupe = app.Option("-d|--find-dupes", "Finds duplicate voices in the bank. (NOT YET IMPLEMENTED)", CommandOptionType.NoValue);
-            patch = app.Option<int?>("-p|--patch <PATCHNUM>", "Specify the voice patch to display info for.", CommandOptionType.MultipleValue);
+            deDupe = app.Option("-d|--find-dupes", "Finds duplicate voices in the bank.", CommandOptionType.NoValue);
+            patch = app.Option<int?>("-p|--patch <PATCHNUM>", "Specify the voice patch to display info for (Can be specified multiple times).", CommandOptionType.MultipleValue);
             patch.DefaultValue = -1;
         }
 
@@ -205,11 +205,17 @@ namespace DX7SysexReport
                                     foreach(int? val in patch.ParsedValues)
                                     {
                                         if (val==null) continue;
+                                         Console.WriteLine($"{ShortVoiceName(sysex,(int)val)}:");
                                         Console.WriteLine(JsonSerializer.Serialize(sysex.voices[(int)val], opts));
+                                        Console.WriteLine();
                                     }
                                 else
                                     Console.WriteLine(JsonSerializer.Serialize(sysex, opts));
+
+
+                            if(deDupe.HasValue()) FindDupes(sysex);
                         }
+
                     }
 
                 } catch (Exception e) {
@@ -226,6 +232,32 @@ namespace DX7SysexReport
         const string RS = "\x1b[39m";
         private static string ShortVoiceName(DX7Sysex sysex, int index) =>
             $"{GR}Voice {CY}#{index.ToString("00")}{GR}:{RS} {sysex.voices[index].name}  \x1b[34m(Algorithm {sysex.voices[index].Algorithm}){RS}";
+
+        private static void FindDupes(DX7Sysex sysex)
+        {
+            Console.WriteLine();
+            var noDupesFound = true;
+            for(int i=0; i<sysex.voices.Length-1; i++)
+            {
+                var firstDupe = false;
+                var Voice1 = sysex.voices[i];
+                    Voice1.name = ""; //Match dupes with different names
+                for(int j=i+1; j<sysex.voices.Length; j++)
+                {
+                    var Voice2 = sysex.voices[j];
+                    Voice2.name = "";
+                    if (Voice1.Equals(Voice2))
+                    {
+                        if (!firstDupe)
+                            Console.WriteLine($"Dupes of {ShortVoiceName(sysex,i)}:");
+                            firstDupe=true;
+                        Console.WriteLine($"    {ShortVoiceName(sysex, j)}");
+                        noDupesFound = false;
+                    }
+                }
+            }
+            if (noDupesFound) Console.WriteLine("No duplicate voices found.");
+        }
 
         private static int Validate(DX7Sysex sysex)
         {
@@ -290,7 +322,6 @@ namespace DX7SysexReport
             return 0;
 
         }
-
         private static DX7Sysex Parse(BinaryReader reader)
         {
             var o = new DX7Sysex();
