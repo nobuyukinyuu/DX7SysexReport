@@ -1,3 +1,5 @@
+*.SYX
+
 .vscode/*
 !.vscode/settings.json
 !.vscode/tasks.json
