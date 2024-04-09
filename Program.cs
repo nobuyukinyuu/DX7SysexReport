@@ -3,10 +3,11 @@ using System.IO;
 using System.Text;
 using McMaster.Extensions.CommandLineUtils;
 using System.Runtime.InteropServices;
-using System.Reflection.Metadata;
+
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Reflection.Metadata.Ecma335;
+using System.Collections.Generic;
+
 
 namespace DX7SysexReport
 {
@@ -236,27 +237,43 @@ namespace DX7SysexReport
         private static void FindDupes(DX7Sysex sysex)
         {
             Console.WriteLine();
-            var noDupesFound = true;
+
+            var toCheck = new HashSet<int>();
+            if (patch.ParsedValue!=patch.DefaultValue)  
+                foreach(int? val in patch.ParsedValues)
+                    toCheck.Add((int)val);
+            else
+                for(int i=0; i<sysex.voices.Length; i++)
+                    toCheck.Add(i);
+
+
+            var dupesFound = new HashSet<int>();
             for(int i=0; i<sysex.voices.Length-1; i++)
             {
+                if(!toCheck.Contains(i) || dupesFound.Contains(i)) continue;
+
                 var firstDupe = false;
                 var Voice1 = sysex.voices[i];
                     Voice1.name = ""; //Match dupes with different names
+                var v1s = JsonSerializer.Serialize(Voice1, new JsonSerializerOptions{IncludeFields=true});
                 for(int j=i+1; j<sysex.voices.Length; j++)
                 {
+                    if(!toCheck.Contains(j)) continue;
                     var Voice2 = sysex.voices[j];
                     Voice2.name = "";
-                    if (Voice1.Equals(Voice2))
+                    var v2s = JsonSerializer.Serialize(Voice2, new JsonSerializerOptions{IncludeFields=true});
+
+                    if (v1s == v2s)
                     {
                         if (!firstDupe)
                             Console.WriteLine($"Dupes of {ShortVoiceName(sysex,i)}:");
                             firstDupe=true;
                         Console.WriteLine($"    {ShortVoiceName(sysex, j)}");
-                        noDupesFound = false;
+                        dupesFound.Add(j);  //Mark this voice as a found dupe so the i indexer can skip checking it again.
                     }
                 }
             }
-            if (noDupesFound) Console.WriteLine("No duplicate voices found.");
+            if (dupesFound.Count==0) Console.WriteLine("No duplicate voices found.");
         }
 
         private static int Validate(DX7Sysex sysex)
