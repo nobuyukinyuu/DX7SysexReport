@@ -7,5 +7,5 @@ It is inspired by [DX7Dump](http://tedfelix.com/yamaha-dx7/index.html) by Ted Fe
 * Detailed information on individual voices/patches with `-p`
 * Duplicate voice finder (`-d`)
 
-### Screenshot
+## Screenshot
 ![image](https://github.com/nobuyukinyuu/DX7SysexReport/assets/1023003/8ae08a75-33cf-4881-b84d-eae41c5056f6)
