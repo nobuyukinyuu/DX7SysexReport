@@ -86,7 +86,7 @@ namespace DX7SysexReport
         [JsonIgnore] public byte algorithm=0;       //110    0   0 |        ALG        | ALGORITHM     0-31
         [JsonIgnore] public byte KEYSYNC_FB=0;      //111    0   0   0 |OKS|    FB     | OSC KEY SYNC  0-1    FEEDBACK      0-7
 
-        readonly public bool KeySync {get => ((KEYSYNC_FB>>3) & 1) == 1; }
+        readonly public bool OscKeySync {get => ((KEYSYNC_FB>>3) & 1) == 1; }
         readonly public byte Feedback {get => (byte)(KEYSYNC_FB & 0x7); }
 
         public byte lfoSpeed=0;
@@ -95,12 +95,18 @@ namespace DX7SysexReport
         public byte lfoAMD=0;
         [JsonIgnore] public byte lfoPackedOpts=0;   //116  |  LPMS |      LFW      |LKS| LF PT MOD SNS 0-7   WAVE 0-5,  SYNC 0-1
 
+        readonly public bool LFOKeySync {get=> (lfoPackedOpts & 1) == 1;}
+        readonly public string LFOWaveform {get=>  ((LFOWaves)((lfoPackedOpts >> 1) & 0x7)).ToString();}
+        readonly public int LFO_PMS {get=> (lfoPackedOpts >> 4);}
+
         public byte transpose=0;
         
         // byte[] name;//=Encoding.ASCII.GetBytes("No Name   ");
 
         [JsonIgnore] public string name = "_Untitled_";
     }
+
+    enum LFOWaves {Triangle, SawDown, SawUp, Square, Sine, SAndHold}
 
     // [StructLayout(LayoutKind.Sequential)] 
     struct DX7Sysex
