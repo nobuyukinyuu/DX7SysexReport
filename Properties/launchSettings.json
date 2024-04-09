@@ -2,7 +2,7 @@
   "profiles": {
     "DX7SysexReport": {
       "commandName": "Project",
-      "commandLineArgs": "ROM1A.SYX"
+      "commandLineArgs": "-d 28.SYX"
     }
   }
 }
